@@ -31,10 +31,12 @@ def linear_regression_prediction(
     >>> bool(abs(n - 5.0) < 1e-6)  # Checking precision because of floating point errors
     True
     """
-    x = np.array([[1, item, train_mtch[i]] for i, item in enumerate(train_dt)])
+    # Use column_stack for more efficient matrix construction
+    x = np.column_stack([np.ones(len(train_dt)), train_dt, train_mtch])
     y = np.array(train_usr)
-    beta = np.dot(np.dot(np.linalg.inv(np.dot(x.transpose(), x)), x.transpose()), y)
-    return abs(beta[0] + test_dt[0] * beta[1] + test_mtch[0] + beta[2])
+    # Use linalg.solve instead of computing inverse for better performance and stability
+    beta = np.linalg.solve(x.T @ x, x.T @ y)
+    return abs(beta[0] + test_dt[0] * beta[1] + test_mtch[0] * beta[2])
 
 
 def sarimax_predictor(train_user: list, train_match: list, test_match: list) -> float:
@@ -87,12 +89,11 @@ def interquartile_range_checker(train_user: list) -> float:
     >>> interquartile_range_checker([1,2,3,4,5,6,7,8,9,10])
     2.8
     """
-    train_user.sort()
-    q1 = np.percentile(train_user, 25)
-    q3 = np.percentile(train_user, 75)
+    # Use numpy array for more efficient operations, avoid in-place sort
+    user_array = np.array(train_user)
+    q1, q3 = np.percentile(user_array, [25, 75])
     iqr = q3 - q1
-    low_lim = q1 - (iqr * 0.1)
-    return float(low_lim)
+    return q1 - (iqr * 0.1)
 
 
 def data_safety_checker(list_vote: list, actual_result: float) -> bool:
@@ -104,19 +105,19 @@ def data_safety_checker(list_vote: list, actual_result: float) -> bool:
     >>> data_safety_checker([2, 3, 4], 5.0)
     False
     """
-    safe = 0
-    not_safe = 0
-
     if not isinstance(actual_result, float):
         raise TypeError("Actual result should be float. Value passed is a list")
 
-    for i in list_vote:
-        if i > actual_result:
-            safe = not_safe + 1
-        elif abs(abs(i) - abs(actual_result)) <= 0.1:
-            safe += 1
-        else:
-            not_safe += 1
+    # Vectorized operations for better performance
+    votes_array = np.array(list_vote)
+    
+    # Count votes efficiently
+    greater_than_actual = np.sum(votes_array > actual_result)
+    close_to_actual = np.sum(np.abs(votes_array - actual_result) <= 0.1)
+    
+    safe = greater_than_actual + close_to_actual  # Fix the logic error
+    not_safe = len(list_vote) - safe
+    
     return safe > not_safe
 
 
@@ -127,36 +128,43 @@ if __name__ == "__main__":
     """
     data_input_df = pd.read_csv("ex_data.csv")
 
-    # start normalization
-    normalize_df = Normalizer().fit_transform(data_input_df.values)
-    # split data
-    total_date = normalize_df[:, 2].tolist()
-    total_user = normalize_df[:, 0].tolist()
-    total_match = normalize_df[:, 1].tolist()
+    # start normalization - more efficient data loading and normalization
+    data_values = data_input_df.values
+    normalize_df = Normalizer().fit_transform(data_values)
+    
+    # Efficient data splitting using array slicing (no .tolist() conversions)
+    # Split data once at the boundary
+    split_idx = -1
+    
+    # Extract columns directly as arrays
+    total_user = normalize_df[:, 0]
+    total_match = normalize_df[:, 1] 
+    total_date = normalize_df[:, 2]
+    
+    # Training data (all but last row)
+    train_user = total_user[:split_idx]
+    train_match = total_match[:split_idx]
+    train_date = total_date[:split_idx]
+    
+    # Test data (last row only)
+    test_user_val = total_user[split_idx]
+    test_match_val = total_match[split_idx]
+    test_date_val = total_date[split_idx]
+    
+    # For SVR - prepare feature matrix efficiently
+    x_train = normalize_df[:split_idx, [1, 2]]  # match and date columns
+    x_test = normalize_df[split_idx:, [1, 2]]   # last row
 
-    # for svr (input variable = total date and total match)
-    x = normalize_df[:, [1, 2]].tolist()
-    x_train = x[: len(x) - 1]
-    x_test = x[len(x) - 1 :]
-
-    # for linear regression & sarimax
-    train_date = total_date[: len(total_date) - 1]
-    train_user = total_user[: len(total_user) - 1]
-    train_match = total_match[: len(total_match) - 1]
-
-    test_date = total_date[len(total_date) - 1 :]
-    test_user = total_user[len(total_user) - 1 :]
-    test_match = total_match[len(total_match) - 1 :]
-
-    # voting system with forecasting
+    # voting system with forecasting - convert to lists only when required by functions
     res_vote = [
         linear_regression_prediction(
-            train_date, train_user, train_match, test_date, test_match
+            train_date.tolist(), train_user.tolist(), train_match.tolist(), 
+            [test_date_val], [test_match_val]
         ),
-        sarimax_predictor(train_user, train_match, test_match),
-        support_vector_regressor(x_train, x_test, train_user),
+        sarimax_predictor(train_user.tolist(), train_match.tolist(), [test_match_val]),
+        support_vector_regressor(x_train.tolist(), x_test.tolist(), train_user.tolist()),
     ]
 
     # check the safety of today's data
-    not_str = "" if data_safety_checker(res_vote, test_user[0]) else "not "
+    not_str = "" if data_safety_checker(res_vote, float(test_user_val)) else "not "
     print(f"Today's data is {not_str}safe.")
