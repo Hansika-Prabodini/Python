@@ -1,0 +1,64 @@
+[flake8]
+# Based on the project's existing ruff configuration
+max-line-length = 88
+max-complexity = 17
+extend-ignore = 
+    # Ignore some errors that are handled by ruff or are project-specific
+    E203,  # whitespace before ':'
+    W503,  # line break before binary operator
+    E501,  # line too long (handled by formatter)
+    F401,  # imported but unused (handled by ruff)
+    
+# Per-file ignores matching the ruff configuration
+per-file-ignores =
+    # Test files can have longer lines and more complex structures
+    */tests/*:E501,C901
+    # Allow assert statements in tests
+    */test_*.py:S101
+    # Project Euler solutions can be more complex
+    project_euler/*:C901,E501
+    # Init files can have unused imports
+    __init__.py:F401
+    
+exclude = 
+    .git,
+    __pycache__,
+    .env,
+    .venv,
+    venv,
+    build,
+    dist,
+    *.egg-info,
+    .tox,
+    .coverage,
+    .pytest_cache,
+    node_modules
+
+select = 
+    # pycodestyle errors
+    E,
+    # pycodestyle warnings  
+    W,
+    # pyflakes
+    F,
+    # flake8-bugbear
+    B,
+    # flake8-comprehensions
+    C4,
+    # McCabe complexity
+    C90,
+    # flake8-import-order
+    I,
+    # flake8-docstrings
+    D,
+    # flake8-simplify
+    SIM
+
+# Docstring settings
+docstring-convention = google
+require-plugins = 
+    flake8-bugbear,
+    flake8-docstrings,
+    flake8-import-order,
+    flake8-comprehensions,
+    flake8-simplify
