@@ -10,14 +10,21 @@ def binary_search(array: list, lower_bound: int, upper_bound: int, value: int) -
     >>> binary_search(matrix, 0, len(matrix) - 1, 23)
     -1
     """
+    # Base case: if bounds cross, value not found in array
     if lower_bound > upper_bound:
         return -1
     
+    # Calculate middle index (floor division to get integer)
     r = (lower_bound + upper_bound) // 2
+    
+    # Check if middle element is the target value
     if array[r] == value:
         return r
+    
+    # If middle element is less than target, search right half
     if array[r] < value:
         return binary_search(array, r + 1, upper_bound, value)
+    # Otherwise, search left half
     else:
         return binary_search(array, lower_bound, r - 1, value)
 
@@ -40,15 +47,25 @@ def mat_bin_search(value: int, matrix: list) -> list:
     >>> mat_bin_search(target, matrix)
     [-1, -1]
     """
+    # Handle edge cases: empty matrix or empty first row
     if not matrix or not matrix[0]:
         return [-1, -1]
     
+    # Iterate through each row of the matrix
     for index in range(len(matrix)):
+        # Optimization: if first element of current row exceeds target,
+        # no need to search further rows (matrix is sorted)
         if matrix[index][0] > value:
             break
+        
+        # Perform binary search on current row
         r = binary_search(matrix[index], 0, len(matrix[index]) - 1, value)
+        
+        # If value found, return [row_index, column_index]
         if r != -1:
             return [index, r]
+    
+    # Value not found in entire matrix
     return [-1, -1]
 
 
