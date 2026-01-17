@@ -36,6 +36,15 @@ test = [
   "pytest-cov>=6",
 ]
 
+lint = [
+  "flake8>=7.0.0",
+  "flake8-bugbear>=24.0.0",
+  "flake8-docstrings>=1.7.0",
+  "flake8-import-order>=0.18.2",
+  "flake8-comprehensions>=3.14.0",
+  "flake8-simplify>=0.21.0",
+]
+
 docs = [
   "myst-parser>=4",
   "sphinx-autoapi>=3.4",
